@@ -79,8 +79,9 @@ vector<MsgContainer> subVec;
  * MOOS to ROS Interface
  */
 MOOSNode MOOSApp;
-void MOOSInit(const char * sMissionFile){
-     const char * sMOOSName = "MOOS_ROS_BRIDGE";
+void MOOSInit(const char *sMissionFile)
+{
+     const char *sMOOSName = "MOOS_ROS_BRIDGE";
 
      MOOSApp.Run(sMOOSName, sMissionFile);
 }
@@ -121,10 +122,10 @@ MOOSApp.toMOOS(it->moosName,msg->data);
 }
 */
 
+// Topic specified by Boost::bind()
 template <class T, class C>
-void callBack(const ros::MessageEvent<T const>& event){
-     ros::M_string header = event.getConnectionHeader();
-     std::string topic  = header["topic"];
+void callBack(const ros::MessageEvent<T const> &event, const std::string &topic)
+{
 
      // show header content:
      // Uncomment this code and check that the "topic" is actually
@@ -140,116 +141,163 @@ void callBack(const ros::MessageEvent<T const>& event){
      */
 
      vector<MsgContainer>::iterator it;
-     for ( it = subVec.begin() ; it < subVec.end() ; it++ ){
-	  size_t found = topic.find(it->rosName);
-	  if(found!=string::npos){
-	       const C & msg = event.getMessage();
-	       MOOSApp.toMOOS(it->moosName,msg->data);
-	  }
-     }
-}
-
-
-template <class T, class C>
-void binaryStringCallBack(const ros::MessageEvent<T const>& event){
-     ros::M_string header = event.getConnectionHeader();
-     std::string topic  = header["topic"];
-     vector<MsgContainer>::iterator it;
-     for ( it = subVec.begin() ; it < subVec.end() ; it++ ){
+     for (it = subVec.begin(); it < subVec.end(); it++)
+     {
           size_t found = topic.find(it->rosName);
-          if(found!=string::npos){
-               const C & msg = event.getMessage();
-               MOOSApp.toMOOSBinaryString(it->moosName,msg->data);
+          if (found != string::npos)
+          {
+               const C &msg = event.getMessage();
+               MOOSApp.toMOOS(it->moosName, msg->data);
           }
      }
 }
 
+template <class T, class C>
+void binaryStringCallBack(const ros::MessageEvent<T const> &event, const std::string &topic)
+{
+
+     vector<MsgContainer>::iterator it;
+     for (it = subVec.begin(); it < subVec.end(); it++)
+     {
+          size_t found = topic.find(it->rosName);
+          if (found != string::npos)
+          {
+               const C &msg = event.getMessage();
+               MOOSApp.toMOOSBinaryString(it->moosName, msg->data);
+          }
+     }
+}
 
 /*
  * Parse the XML file to search for Publishers and Subscribers
  * Create ROS Publishers and Subscribers
  * Also create vectors to hold pointers to publishers and subscribers
  */
-int CreateROSPubSub(xml_node<> *node, vector<MsgContainer> *pubVec, vector<MsgContainer> *subVec, ros::NodeHandle *n){
+int CreateROSPubSub(xml_node<> *node, vector<MsgContainer> *pubVec, vector<MsgContainer> *subVec, ros::NodeHandle *n)
+{
 
      // MOOS Publishers to ROS Subscribers
-     if(strcmp(node->first_node("direction")->value(),"toROS") == SUCCESS){
-	  if(strcmp(node->first_node("rostype")->value(),"std_msgs/Int32") == SUCCESS){
-	       pubVec->push_back(MsgContainer(n->advertise<std_msgs::Int32>(node->first_node("rosname")->value(),1000),
-					      node->first_node("moosname")->value(),
-					      node->first_node("rosname")->value(),
-					      node->first_node("moostype")->value(),
-					      node->first_node("rostype")->value()));
-	  }else if(strcmp(node->first_node("rostype")->value(),"std_msgs/Int64") == SUCCESS){
-	       pubVec->push_back(MsgContainer(n->advertise<std_msgs::Int64>(node->first_node("rosname")->value(),1000),
-					      node->first_node("moosname")->value(),
-					      node->first_node("rosname")->value(),
-					      node->first_node("moostype")->value(),
-					      node->first_node("rostype")->value()));
-	  }else if(strcmp(node->first_node("rostype")->value(),"std_msgs/String") == SUCCESS){
-	       pubVec->push_back(MsgContainer(n->advertise<std_msgs::String>(node->first_node("rosname")->value(),1000),
-					      node->first_node("moosname")->value(),
-					      node->first_node("rosname")->value(),
-					      node->first_node("moostype")->value(),
-					      node->first_node("rostype")->value()));
-	  }else if(strcmp(node->first_node("rostype")->value(),"std_msgs/Float32") == SUCCESS){
-	       pubVec->push_back(MsgContainer(n->advertise<std_msgs::Float32>(node->first_node("rosname")->value(),1000),
-					      node->first_node("moosname")->value(),
-					      node->first_node("rosname")->value(),
-					      node->first_node("moostype")->value(),
-					      node->first_node("rostype")->value()));
-	  }else if(strcmp(node->first_node("rostype")->value(),"std_msgs/Float64") == SUCCESS){
-	       pubVec->push_back(MsgContainer(n->advertise<std_msgs::Float64>(node->first_node("rosname")->value(),1000),
-					      node->first_node("moosname")->value(),
-					      node->first_node("rosname")->value(),
-					      node->first_node("moostype")->value(),
-					      node->first_node("rostype")->value()));
-	  }else{
-	       ROS_INFO("ERROR PARSING XML CONFIG FILE\n");
-	       return FAIL;
-	  }
-
-	  // ROS Publishers to MOOS Subscribers
-	  // In the current release of ROS, the "topic" name is not required to be transmitted with the data, this makes it difficult
-	  // for us to decode which message is from where in the callback.  So we force the "topic" name to be transmitted
-	  // by setting the comm links to be unreliable. However, this could change in future versions of ROS, need to
-	  // keep an eye on this functionality.
-     }else if(strcmp(node->first_node("direction")->value(),"toMOOS") == SUCCESS){
-	  if(strcmp(node->first_node("rostype")->value(),"std_msgs/Int32") == 0){
-               subVec->push_back(MsgContainer(n->subscribe(node->first_node("rosname")->value(),
-							   1000,callBack<std_msgs::Int32,std_msgs::Int32ConstPtr>, ros::TransportHints().unreliable()),
-					      node->first_node("moosname")->value(),
-					      node->first_node("rosname")->value()));
-	  }else if(strcmp(node->first_node("rostype")->value(),"std_msgs/Int64") == SUCCESS){
-	       subVec->push_back(MsgContainer(n->subscribe(node->first_node("rosname")->value(),
-							   1000,callBack<std_msgs::Int64,std_msgs::Int64ConstPtr>, ros::TransportHints().unreliable()),
-					      node->first_node("moosname")->value(),
-					      node->first_node("rosname")->value()));
-	  }else if(strcmp(node->first_node("rostype")->value(),"std_msgs/Float32") == SUCCESS){
-	       subVec->push_back(MsgContainer(n->subscribe(node->first_node("rosname")->value(),
-							   1000,callBack<std_msgs::Float32,std_msgs::Float32ConstPtr>, ros::TransportHints().unreliable()),
-					      node->first_node("moosname")->value(),
-					      node->first_node("rosname")->value()));
-	  }else if(strcmp(node->first_node("rostype")->value(),"std_msgs/Float64") == SUCCESS){
-	       subVec->push_back(MsgContainer(n->subscribe(node->first_node("rosname")->value(),
-							   1000,callBack<std_msgs::Float64,std_msgs::Float64ConstPtr>, ros::TransportHints().unreliable()),
-					      node->first_node("moosname")->value(),
-					      node->first_node("rosname")->value()));
-	  }else if(strcmp(node->first_node("rostype")->value(),"std_msgs/String") == SUCCESS){
-	       subVec->push_back(MsgContainer(n->subscribe(node->first_node("rosname")->value(),
-							   1000,callBack<std_msgs::String,std_msgs::StringConstPtr>, ros::TransportHints().unreliable()),
-					      node->first_node("moosname")->value(),
-					      node->first_node("rosname")->value()));
-	  }else if(strcmp(node->first_node("rostype")->value(),"std_msgs/String/Binary") == SUCCESS){
-               // Binary-string support
-               subVec->push_back(MsgContainer(n->subscribe(node->first_node("rosname")->value(),
-                                                           1000,binaryStringCallBack<std_msgs::String,std_msgs::StringConstPtr>, ros::TransportHints().unreliable()),
+     if (strcmp(node->first_node("direction")->value(), "toROS") == SUCCESS)
+     {
+          if (strcmp(node->first_node("rostype")->value(), "std_msgs/Int32") == SUCCESS)
+          {
+               pubVec->push_back(MsgContainer(n->advertise<std_msgs::Int32>(node->first_node("rosname")->value(), 1000),
                                               node->first_node("moosname")->value(),
-                                              node->first_node("rosname")->value()));
-          }else{
-	       ROS_INFO("ERROR PARSING XML CONFIG FILE\n");
-	       return FAIL;
-	  }
+                                              node->first_node("rosname")->value(),
+                                              node->first_node("moostype")->value(),
+                                              node->first_node("rostype")->value()));
+          }
+          else if (strcmp(node->first_node("rostype")->value(), "std_msgs/Int64") == SUCCESS)
+          {
+               pubVec->push_back(MsgContainer(n->advertise<std_msgs::Int64>(node->first_node("rosname")->value(), 1000),
+                                              node->first_node("moosname")->value(),
+                                              node->first_node("rosname")->value(),
+                                              node->first_node("moostype")->value(),
+                                              node->first_node("rostype")->value()));
+          }
+          else if (strcmp(node->first_node("rostype")->value(), "std_msgs/String") == SUCCESS)
+          {
+               pubVec->push_back(MsgContainer(n->advertise<std_msgs::String>(node->first_node("rosname")->value(), 1000),
+                                              node->first_node("moosname")->value(),
+                                              node->first_node("rosname")->value(),
+                                              node->first_node("moostype")->value(),
+                                              node->first_node("rostype")->value()));
+          }
+          else if (strcmp(node->first_node("rostype")->value(), "std_msgs/Float32") == SUCCESS)
+          {
+               pubVec->push_back(MsgContainer(n->advertise<std_msgs::Float32>(node->first_node("rosname")->value(), 1000),
+                                              node->first_node("moosname")->value(),
+                                              node->first_node("rosname")->value(),
+                                              node->first_node("moostype")->value(),
+                                              node->first_node("rostype")->value()));
+          }
+          else if (strcmp(node->first_node("rostype")->value(), "std_msgs/Float64") == SUCCESS)
+          {
+               pubVec->push_back(MsgContainer(n->advertise<std_msgs::Float64>(node->first_node("rosname")->value(), 1000),
+                                              node->first_node("moosname")->value(),
+                                              node->first_node("rosname")->value(),
+                                              node->first_node("moostype")->value(),
+                                              node->first_node("rostype")->value()));
+          }
+          else
+          {
+               ROS_INFO("ERROR PARSING XML CONFIG FILE\n");
+               return FAIL;
+          }
+
+          // ROS Publishers to MOOS Subscribers
+          // Use Boost::bind(function, arg1, arg2) to bind a version of the callback with
+          // the specified topic name. arg1 is _1, which is a placeholder for the first passed argument.
+          // arg2 is the topic name specified in the xml config document.
+     }
+     else if (strcmp(node->first_node("direction")->value(), "toMOOS") == SUCCESS)
+     {
+          if (strcmp(node->first_node("rostype")->value(), "std_msgs/Int32") == 0)
+          {
+               subVec->push_back(MsgContainer(
+                   n->subscribe<std_msgs::Int32>(
+                       node->first_node("rosname")->value(),
+                       1000,
+                       boost::bind(callBack<std_msgs::Int32, std_msgs::Int32ConstPtr>, _1, node->first_node("rosname")->value())),
+                   node->first_node("moosname")->value(),
+                   node->first_node("rosname")->value()));
+          }
+          else if (strcmp(node->first_node("rostype")->value(), "std_msgs/Int64") == SUCCESS)
+          {
+               subVec->push_back(MsgContainer(
+                   n->subscribe<std_msgs::Int64>(
+                       node->first_node("rosname")->value(),
+                       1000,
+                       boost::bind(callBack<std_msgs::Int64, std_msgs::Int64ConstPtr>, _1, node->first_node("rosname")->value())),
+                   node->first_node("moosname")->value(),
+                   node->first_node("rosname")->value()));
+          }
+          else if (strcmp(node->first_node("rostype")->value(), "std_msgs/Float32") == SUCCESS)
+          {
+               subVec->push_back(MsgContainer(
+                   n->subscribe<std_msgs::Float32>(
+                       node->first_node("rosname")->value(),
+                       1000,
+                       boost::bind(callBack<std_msgs::Float32, std_msgs::Float32ConstPtr>, _1, node->first_node("rosname")->value())),
+                   node->first_node("moosname")->value(),
+                   node->first_node("rosname")->value()));
+          }
+          else if (strcmp(node->first_node("rostype")->value(), "std_msgs/Float64") == SUCCESS)
+          {
+               subVec->push_back(MsgContainer(
+                   n->subscribe<std_msgs::Float64>(
+                       node->first_node("rosname")->value(),
+                       1000,
+                       boost::bind(callBack<std_msgs::Float64, std_msgs::Float64ConstPtr>, _1, node->first_node("rosname")->value())),
+                   node->first_node("moosname")->value(),
+                   node->first_node("rosname")->value()));
+          }
+          else if (strcmp(node->first_node("rostype")->value(), "std_msgs/String") == SUCCESS)
+          {
+               subVec->push_back(MsgContainer(
+                   n->subscribe<std_msgs::String>(
+                       node->first_node("rosname")->value(),
+                       1000,
+                       boost::bind(callBack<std_msgs::String, std_msgs::StringConstPtr>, _1, node->first_node("rosname")->value())),
+                   node->first_node("moosname")->value(),
+                   node->first_node("rosname")->value()));
+          }
+          else if (strcmp(node->first_node("rostype")->value(), "std_msgs/String/Binary") == SUCCESS)
+          {
+               // Binary-string support
+               subVec->push_back(MsgContainer(
+                   n->subscribe<std_msgs::String>(
+                       node->first_node("rosname")->value(),
+                       1000,
+                       boost::bind(binaryStringCallBack<std_msgs::String, std_msgs::StringConstPtr>, _1, node->first_node("rosname")->value())),
+                   node->first_node("moosname")->value(),
+                   node->first_node("rosname")->value()));
+          }
+          else
+          {
+               ROS_INFO("ERROR PARSING XML CONFIG FILE\n");
+               return FAIL;
+          }
      }
 
      return SUCCESS;
@@ -257,7 +305,8 @@ int CreateROSPubSub(xml_node<> *node, vector<MsgContainer> *pubVec, vector<MsgCo
 
 int main(int argc, char **argv)
 {
-     if(argc < 3){
+     if (argc < 3)
+     {
           ROS_INFO("Invalid number of parameters\n\n");
           ROS_INFO("argc is %d, but it should be at least 3.\n", argc);
           ROS_INFO("Usage:\n\trosrun moosros Bridge <moosrosconfig.xml> <mission.moos>");
@@ -269,46 +318,48 @@ int main(int argc, char **argv)
      ros::NodeHandle n;
 
      //Read in complete XML Document
-     string str,strTotal;
+     string str, strTotal;
      ifstream in;
 
      //Check for existence of config files
      struct stat stFileInfo;
      int intStat;
-     intStat = stat(argv[1],&stFileInfo);
-     if(intStat != 0) {
-          ROS_INFO("\n******\nCONFIG FILE MISSING\n%s does not exist!\n******\n",argv[1]);
+     intStat = stat(argv[1], &stFileInfo);
+     if (intStat != 0)
+     {
+          ROS_INFO("\n******\nCONFIG FILE MISSING\n%s does not exist!\n******\n", argv[1]);
           return 0;
      }
 
      //Open file and read the entire file into the strTotal buffer
      in.open(argv[1]);
-     getline(in,str);
+     getline(in, str);
 
-     while ( in ) {
+     while (in)
+     {
           strTotal += str;
-          getline(in,str);
+          getline(in, str);
      }
 
      //Convert C++ string to char*
-     char * xmlDoc = new char [strTotal.size()+1];
-     strcpy (xmlDoc, strTotal.c_str());
+     char *xmlDoc = new char[strTotal.size() + 1];
+     strcpy(xmlDoc, strTotal.c_str());
 
      //Parse XML Document
-     xml_document<> doc;    // character type defaults to char
-     doc.parse<0>(xmlDoc);    // 0 means default parse flags
+     xml_document<> doc;   // character type defaults to char
+     doc.parse<0>(xmlDoc); // 0 means default parse flags
 
      vector<MsgContainer> pubVec;
 
      //Get First Topic/Message
      xml_node<> *node = doc.first_node()->first_node();
 
-     if(CreateROSPubSub(node,&pubVec,&subVec,&n) == FAIL)
+     if (CreateROSPubSub(node, &pubVec, &subVec, &n) == FAIL)
           return 0;
 
      //Process all Topics/Messages
-     while( (node = node->next_sibling()) != 0 )
-          if(CreateROSPubSub(node,&pubVec,&subVec,&n) == FAIL)
+     while ((node = node->next_sibling()) != 0)
+          if (CreateROSPubSub(node, &pubVec, &subVec, &n) == FAIL)
                return 0;
 
      ros::Rate loop_rate(10);
