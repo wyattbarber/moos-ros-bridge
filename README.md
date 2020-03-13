@@ -1,3 +1,9 @@
+# clone of moos-ros-bridge
+
+Cloned from SyllogismRXS(Kevin DeMarco). Needed to fix the getConnectionHeader() usage, which was failing on our system.
+
+
+
 # moos-ros-bridge
 
 A communication bridge between the MOOS and ROS publish-and-subscribe
