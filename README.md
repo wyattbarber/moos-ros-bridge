@@ -7,9 +7,8 @@ Replaces use of getConnectionHeader() to get topic name with use of boost::bind(
 
 # source project
 See the latest version of the source project here: https://github.com/SyllogismRXS/moos-ros-bridge
-
-# cloned project info
 Below is the README for the moos-ros-bridge project from the time that we made use of it:
+
 
 A communication bridge between the MOOS and ROS publish-and-subscribe
 middleware systems.
