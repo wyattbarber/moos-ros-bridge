@@ -2,11 +2,14 @@
 
 Cloned from SyllogismRXS(Kevin DeMarco). Needed to fix the getConnectionHeader() usage, which was failing on our system.
 
-Replaces use of getConnectionHeader() to get topic name with use of boost::bind(callback, _1, topic) in the setup loop creating a list of subscribers in the ROS to MOOS direction. Tested and working with ROS Melodic.
+Replaces use of getConnectionHeader() to get topic name with use of boost::bind(callback, _1, topic) in the setup loop that creates the list of subscribers in the ROS to MOOS direction. Tested and working with ROS Melodic.
 
 
+# source project
+See the latest version of the source project here: https://github.com/SyllogismRXS/moos-ros-bridge
 
-# moos-ros-bridge
+# cloned project info
+Below is the README for the moos-ros-bridge project from the time that we made use of it:
 
 A communication bridge between the MOOS and ROS publish-and-subscribe
 middleware systems.
